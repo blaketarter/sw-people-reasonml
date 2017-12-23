@@ -1,57 +1,26 @@
-type personList = array(person)
-and person = {
-  name: string
-};
-
-type results = {
-  results: array(person)
-};
-
 type state = {
-  personList,
+  people: Types.people,
 };
 
 type action = 
-  | AddPeople(personList);
+  | AddPeople(Types.people);
 
-let personListToComponents = (l: personList) => Array.map((p) => <Person name=p.name />)(l);
-
-module DecodeResponse {
-  let decodePersonList = (json): person => {
-    Json.Decode.{
-      name: field("name", string, json)
-    }
-  };
-  
-  let decodeResults = (json): personList => {
-    Json.Decode.{
-      results: field("results", array(decodePersonList), json)
-    }.results;
-  }
-};
-
-let fetchPeople = (reduce) => Js.Promise.(
-  Fetch.fetch("https://swapi.co/api/people")
-  |> then_(Fetch.Response.json)
-  |> then_(json => DecodeResponse.decodeResults(json) |> resolve)
-  |> then_(json => reduce(json) |> resolve)
-);
+let addPeopleReduce = (reduce) => (p) => reduce(r => AddPeople(r), p) |> Js.Promise.resolve;
 
 let component = ReasonReact.reducerComponent("People");
 let make = (_children) => {
   ...component,
-  initialState: () => { personList: [||] },
+  initialState: () => { people: [||] },
   reducer: (action, _state) =>
     switch action {
-      | AddPeople(personList) => ReasonReact.Update({ personList: personList })
+      | AddPeople(people) => ReasonReact.Update({ people: people })
     },
   didMount: ({ reduce }) => {
-    fetchPeople(reduce(results => AddPeople(results))) |> ignore;
-    NoUpdate
+    PeopleResource.get() |> Js.Promise.then_(addPeopleReduce(reduce)) |> ignore;
+    ReasonReact.NoUpdate
   },
   render: ({ state }) => {
-    let people = personListToComponents(state.personList);
-
+    let people = Array.map((p: Types.person) => <Person name=p.name key=p.url />, state.people);
     <div>
       <h1>(ReasonReact.stringToElement("Star Wars People"))</h1>
       (ReasonReact.arrayToElement(people))

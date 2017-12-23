@@ -1,6 +1,8 @@
 {
   "name": "reason-scripts",
   "sources": [
+    "src/types",
+    "src/resources",
     "src/components",
     "src"
   ],
